@@ -1,0 +1,29 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Incident {
+  id           Int      @id @default(autoincrement())
+  title        String
+  description  String
+  images       Image[]
+  latitude     Float
+  longitude    Float
+  locationName String
+  googleMapUrl String?  // Nuevo campo opcional para el iframe de Google
+  date         DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Image {
+  id         Int      @id @default(autoincrement())
+  url        String
+  incident   Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  incidentId Int
+}
