@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { createIncident, updateIncident } from '@/app/actions';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
-import type { Incident } from '@prisma/client';
+import type { Incident, Image } from '@prisma/client';
+import ImageUploader from './ImageUploader'; // Importamos el nuevo componente
 
 // Importar mapa dinámicamente
 const LocationPicker = dynamic(() => import('./LocationPicker'), {
@@ -13,7 +14,7 @@ const LocationPicker = dynamic(() => import('./LocationPicker'), {
 });
 
 interface IncidentFormProps {
-  incident?: Incident;
+  incident?: Incident & { images: Image[] }; // Aseguramos que images esté disponible
 }
 
 export default function IncidentForm({ incident }: IncidentFormProps) {
@@ -21,6 +22,7 @@ export default function IncidentForm({ incident }: IncidentFormProps) {
   const [lat, setLat] = useState<number | null>(incident?.latitude || null);
   const [lng, setLng] = useState<number | null>(incident?.longitude || null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [filesToUpload, setFilesToUpload] = useState<File[]>([]); // Nuevo estado para los archivos
   const isEditMode = incident !== undefined;
 
   async function handleSubmit(formData: FormData) {
@@ -32,6 +34,11 @@ export default function IncidentForm({ incident }: IncidentFormProps) {
     setIsSubmitting(true);
     formData.set('latitude', lat.toString());
     formData.set('longitude', lng.toString());
+    
+    // Adjuntar los archivos del nuevo estado
+    filesToUpload.forEach(file => {
+      formData.append('media', file);
+    });
 
     try {
       if (isEditMode) {
@@ -41,7 +48,9 @@ export default function IncidentForm({ incident }: IncidentFormProps) {
       }
       router.push('/');
     } catch (e) {
+      console.error(e); // Mejor loguear el error real
       alert(isEditMode ? 'Error al actualizar' : 'Error al publicar');
+    } finally {
       setIsSubmitting(false);
     }
   }
@@ -52,6 +61,7 @@ export default function IncidentForm({ incident }: IncidentFormProps) {
         <span>🔥</span> {isEditMode ? 'Editar Reporte de Incendio' : 'Nuevo Reporte de Incendio'}
       </h2>
       
+      {/* ... (resto de los inputs como título, fecha, etc. No cambian) ... */}
       <div className="space-y-2">
         <label className="block text-sm font-medium text-slate-300">Título del Reporte</label>
         <input 
@@ -115,19 +125,13 @@ export default function IncidentForm({ incident }: IncidentFormProps) {
         <label className="block text-sm font-medium text-slate-300 flex items-center gap-2">
             <span>📷</span> Adjuntar Fotos y Videos
         </label>
-        <div className="relative border-2 border-dashed border-slate-600 rounded-lg p-6 text-center hover:border-orange-500 transition-colors">
-            <input 
-                type="file" 
-                name="media" 
-                multiple 
-                accept="image/*,video/*"
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-            />
-            <div className="text-slate-400">
-                <p>Arrastra archivos aquí o haz clic</p>
-                <p className="text-xs mt-1">Soporta JPG, PNG, MP4. {isEditMode && "Si no subes nada, se conservarán las imágenes anteriores."}</p>
-            </div>
-        </div>
+        <ImageUploader 
+          onFilesChange={setFilesToUpload}
+          initialImageUrls={isEditMode ? incident.images.map(img => img.url) : []}
+        />
+        <p className="text-xs text-slate-500 mt-2">
+            {isEditMode ? "Si subes nuevos archivos, se reemplazarán los anteriores." : "Puedes arrastrar y soltar múltiples imágenes o videos."}
+        </p>
       </div>
 
       <div className="space-y-2">
