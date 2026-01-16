@@ -3,6 +3,7 @@ import { getIncidents } from './actions';
 import { checkAuth, logout } from './auth';
 import GlassCard from '@/components/GlassCard';
 import DeleteButton from '@/components/DeleteButton';
+import EditButton from '@/components/EditButton';
 
 export default async function Home() {
   const incidents = await getIncidents();
@@ -53,7 +54,12 @@ export default async function Home() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {incidents.map((incident) => (
             <div key={incident.id} className="relative group">
-                {isAdmin && <DeleteButton id={incident.id} />}
+                {isAdmin && (
+                  <>
+                    <DeleteButton id={incident.id} />
+                    <EditButton id={incident.id} />
+                  </>
+                )}
                 <Link href={`/incident/${incident.id}`}>
                 <GlassCard 
                     title={incident.title}

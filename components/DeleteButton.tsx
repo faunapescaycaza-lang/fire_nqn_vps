@@ -11,7 +11,7 @@ export default function DeleteButton({ id }: { id: number }) {
             await deleteIncident(id);
         }
       }}
-      className="absolute top-3 left-3 bg-red-600 hover:bg-red-700 text-white p-2 rounded-lg z-50 shadow-lg transition-colors"
+      className="absolute top-3 left-3 bg-red-600 hover:bg-red-700 text-white p-2 rounded-lg z-10 shadow-lg transition-colors"
       title="Eliminar Reporte"
     >
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">

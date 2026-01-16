@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
-import { createIncident } from '@/app/actions';
+import { useState, useEffect } from 'react';
+import { createIncident, updateIncident } from '@/app/actions';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
+import type { Incident } from '@prisma/client';
 
 // Importar mapa dinámicamente
 const LocationPicker = dynamic(() => import('./LocationPicker'), {
@@ -11,95 +12,105 @@ const LocationPicker = dynamic(() => import('./LocationPicker'), {
   loading: () => <div className="h-[300px] w-full bg-slate-800 animate-pulse rounded-xl"></div>
 });
 
-export default function IncidentForm() {
+interface IncidentFormProps {
+  incident?: Incident;
+}
+
+export default function IncidentForm({ incident }: IncidentFormProps) {
   const router = useRouter();
-  const [lat, setLat] = useState<number | null>(null);
-  const [lng, setLng] = useState<number | null>(null);
+  const [lat, setLat] = useState<number | null>(incident?.latitude || null);
+  const [lng, setLng] = useState<number | null>(incident?.longitude || null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isEditMode = incident !== undefined;
 
   async function handleSubmit(formData: FormData) {
-    if (lat && lng) {
-      setIsSubmitting(true);
-      formData.set('latitude', lat.toString());
-      formData.set('longitude', lng.toString());
-      
-      try {
-        await createIncident(formData);
-        router.push('/');
-      } catch (e) {
-        alert('Error al publicar');
-        setIsSubmitting(false);
-      }
-    } else {
+    if (!lat || !lng) {
       alert('Por favor selecciona una ubicación en el mapa.');
+      return;
+    }
+    
+    setIsSubmitting(true);
+    formData.set('latitude', lat.toString());
+    formData.set('longitude', lng.toString());
+
+    try {
+      if (isEditMode) {
+        await updateIncident(incident.id, formData);
+      } else {
+        await createIncident(formData);
+      }
+      router.push('/');
+    } catch (e) {
+      alert(isEditMode ? 'Error al actualizar' : 'Error al publicar');
+      setIsSubmitting(false);
     }
   }
 
   return (
     <form action={handleSubmit} className="glass-panel p-8 space-y-6 max-w-2xl mx-auto">
       <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-        <span>🔥</span> Nuevo Reporte de Incendio
+        <span>🔥</span> {isEditMode ? 'Editar Reporte de Incendio' : 'Nuevo Reporte de Incendio'}
       </h2>
       
-      {/* Título */}
       <div className="space-y-2">
         <label className="block text-sm font-medium text-slate-300">Título del Reporte</label>
         <input 
           name="title" 
           required 
+          defaultValue={incident?.title}
           className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none transition-all text-white"
           placeholder="Ej: Incendio en Lago Hermoso"
         />
       </div>
 
-      {/* Fecha y Ubicación (Nombre) en la misma fila */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
             <label className="block text-sm font-medium text-slate-300">Fecha del Evento</label>
             <input 
-            type="date"
-            name="date" 
-            required 
-            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none transition-all text-white"
+              type="date"
+              name="date" 
+              required 
+              defaultValue={incident?.date ? new Date(incident.date).toISOString().split('T')[0] : ''}
+              className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none transition-all text-white"
             />
         </div>
         <div className="space-y-2">
             <label className="block text-sm font-medium text-slate-300">Ubicación (Nombre)</label>
             <input 
-            name="locationName" 
-            required 
-            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none transition-all text-white"
-            placeholder="Ej: Frente Aeropuerto Chapelco"
+              name="locationName" 
+              required 
+              defaultValue={incident?.locationName}
+              className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none transition-all text-white"
+              placeholder="Ej: Frente Aeropuerto Chapelco"
             />
         </div>
       </div>
 
-      {/* Descripción */}
       <div className="space-y-2">
         <label className="block text-sm font-medium text-slate-300">Descripción Detallada</label>
         <textarea 
           name="description" 
           required 
           rows={4}
+          defaultValue={incident?.description}
           className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none transition-all text-white"
           placeholder="Detalles sobre el incendio, vegetación afectada, estado..."
         />
       </div>
 
-      {/* URL Mapa Google */}
       <div className="space-y-2">
         <label className="block text-sm font-medium text-slate-300 flex items-center gap-2">
             <span>🗺️</span> Código o Link del Mapa de Google
         </label>
         <input 
           name="googleMapUrl" 
+          defaultValue={incident?.googleMapUrl || ''}
           className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none transition-all text-white"
           placeholder='<iframe src="https://..." ...></iframe>'
         />
         <p className="text-xs text-slate-500">Puedes pegar el código completo del iframe o solo la URL.</p>
       </div>
 
-      {/* Subida de Archivos */}
       <div className="space-y-2">
         <label className="block text-sm font-medium text-slate-300 flex items-center gap-2">
             <span>📷</span> Adjuntar Fotos y Videos
@@ -114,21 +125,23 @@ export default function IncidentForm() {
             />
             <div className="text-slate-400">
                 <p>Arrastra archivos aquí o haz clic</p>
-                <p className="text-xs mt-1">Soporta JPG, PNG, MP4</p>
+                <p className="text-xs mt-1">Soporta JPG, PNG, MP4. {isEditMode && "Si no subes nada, se conservarán las imágenes anteriores."}</p>
             </div>
         </div>
       </div>
 
-      {/* Mapa Picker */}
       <div className="space-y-2">
         <label className="block text-sm font-medium text-slate-300">Ubicación en Mapa (Click para seleccionar)</label>
         <div className="rounded-xl overflow-hidden border border-slate-700">
-          <LocationPicker onLocationSelect={(lat: number, lng: number) => {
-            setLat(lat);
-            setLng(lng);
-          }} />
+          <LocationPicker 
+            onLocationSelect={(lat, lng) => {
+              setLat(lat);
+              setLng(lng);
+            }} 
+            initialPosition={isEditMode ? { lat, lng } : undefined}
+          />
         </div>
-        {lat && <p className="text-xs text-green-400">Coordenadas: {lat.toFixed(4)}, {lng.toFixed(4)}</p>}
+        {lat && <p className="text-xs text-green-400">Coordenadas: {lat.toFixed(4)}, {lng?.toFixed(4)}</p>}
       </div>
 
       <button 
@@ -136,7 +149,7 @@ export default function IncidentForm() {
         disabled={isSubmitting}
         className={`w-full py-4 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 text-white font-bold rounded-xl shadow-lg transition-all transform hover:scale-[1.02] ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
       >
-        {isSubmitting ? 'Publicando...' : 'Publicar Reporte'}
+        {isSubmitting ? (isEditMode ? 'Guardando...' : 'Publicando...') : (isEditMode ? 'Guardar Cambios' : 'Publicar Reporte')}
       </button>
     </form>
   );
