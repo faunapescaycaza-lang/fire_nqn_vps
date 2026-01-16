@@ -7,14 +7,7 @@ const nextConfig: NextConfig = {
     },
   },
   images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'firenqn.duckdns.org',
-        port: '',
-        pathname: '/uploads/**',
-      },
-    ],
+    unoptimized: true,
   },
 };
 
